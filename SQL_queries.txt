@@ -1,0 +1,86 @@
+-- Query 1:
+
+SELECT DISTINCT f.title film_title,
+                min(c.name) category_name,
+                count() rental_count
+FROM category c
+JOIN film_category fc ON c.category_id = fc.category_id
+JOIN film f ON fc.film_id = f.film_id
+JOIN inventory i ON f.film_id = i.film_id
+JOIN rental r ON i.inventory_id = r.inventory_id
+WHERE c.name in ('Animation',
+                 'Children',
+                 'Classics',
+                 'Comedy',
+                 'Family',
+                 'Music')
+GROUP BY film_title
+ORDER BY category_name,
+         film_title;
+
+
+
+-- Query 2:
+
+SELECT f.title,
+       c.name,
+       f.rental_duration,
+       ntile(4) OVER (
+                      ORDER BY f.rental_duration) standard_quartile
+FROM film f
+JOIN film_category fc ON f.film_id = fc.film_id
+JOIN category c ON fc.category_id = c.category_id
+WHERE c.name in ('Animation',
+                 'Children',
+                 'Classics',
+                 'Comedy',
+                 'Family',
+                 'Music');
+
+
+-- Query 3:
+SELECT Category,
+       standard_quartile,
+       count(*)
+FROM
+  (SELECT f.title,
+          c.name Category,
+          ntile(4) OVER (
+                         ORDER BY f.rental_duration) standard_quartile
+   FROM film f
+   JOIN film_category fc ON f.film_id = fc.film_id
+   JOIN category c ON fc.category_id = c.category_id
+   WHERE c.name in ('Animation',
+                    'Children',
+                    'Classics',
+                    'Comedy',
+                    'Family',
+                    'Music') ) t1
+GROUP BY Category,
+         standard_quartile
+ORDER BY Category,
+         standard_quartile;
+
+
+-- Query 4:
+SELECT date_trunc('month', p.payment_date) pay_mon,
+       c.first_name || ' ' || c.last_name fullname,
+       count(p.amount) pay_countpermon,
+       sum(p.amount) pay_amount
+FROM customer c
+JOIN payment p ON c.customer_id = p.customer_id
+WHERE c.first_name || ' ' || c.last_name in
+    (SELECT t1.fullname
+     FROM
+       (SELECT c.first_name || ' ' || c.last_name fullname,
+               sum(p.amount) sum_pay
+        FROM customer c
+        JOIN payment p ON c.customer_id = p.customer_id
+        GROUP BY fullname
+        ORDER BY sum_pay DESC
+        LIMIT 10) t1)
+  AND p.payment_date BETWEEN '2007-01-01' AND '2008-01-01'
+GROUP BY fullname,
+         pay_mon
+ORDER BY fullname,
+         pay_mon;
